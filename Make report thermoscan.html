@@ -1,29 +1,30 @@
 <!doctype html>
 <html lang="th"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Word → Excel : Thermography Report</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 <style>
-:root{--bg:#f6f7f9;--card:#fff;--tx:#1d2330;--mu:#667085;--bd:#d0d5dd;--ac:#1a56db}
-@media(prefers-color-scheme:dark){:root{--bg:#14171c;--card:#1d2128;--tx:#e8eaee;--mu:#98a2b3;--bd:#3a414c;--ac:#6b9bff}}
+:root{--bg:#f6f7f9;--card:#fff;--tx:#1d2330;--mu:#667085;--bd:#d0d5dd;--ac:#1a56db;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14171c;--card:#1d2128;--tx:#e8eaee;--mu:#98a2b3;--bd:#3a414c;--ac:#6b9bff}}
+:root[data-theme="dark"]{--bg:#14171c;--card:#1d2128;--tx:#e8eaee;--mu:#98a2b3;--bd:#3a414c;--ac:#6b9bff}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.5 system-ui,"Segoe UI",Tahoma,sans-serif}
-main{max-width:860px;margin:0 auto;padding:20px 16px 48px}h1{font-size:20px;margin:0 0 4px}p.s{color:var(--mu);margin:0 0 16px}
+main{max-width:900px;margin:0 auto;padding:20px 16px 48px}h1{font-size:20px;margin:0 0 4px}p.s{color:var(--mu);margin:0 0 16px}
 .card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:16px;margin-bottom:14px}
 h2{font-size:15px;margin:0 0 10px}label{display:block;font-size:13px;color:var(--mu);margin:8px 0 3px}
 input[type=text],textarea{width:100%;padding:7px 9px;border:1px solid var(--bd);border-radius:6px;background:var(--bg);color:var(--tx);font:inherit}
 table{width:100%;border-collapse:collapse;font-size:14px}th{text-align:left;color:var(--mu);font-weight:500;padding:4px}td{padding:3px}
 td input{padding:5px 7px}button{background:var(--ac);color:#fff;border:0;border-radius:8px;padding:10px 18px;font:inherit;font-weight:600;cursor:pointer}
 button:disabled{opacity:.4;cursor:default}#log{white-space:pre-wrap;font-size:13px;color:var(--mu);margin-top:10px}.w{color:#b54708}
-.tw{overflow-x:auto}
+.tw{overflow-x:auto;max-height:420px;overflow-y:auto}
 </style></head><body><main>
 <h1>Word → Excel : Thermography Report</h1>
-<p class="s">อ่านไฟล์ Word ที่ export จากกล้อง แล้วสร้างรายงาน Excel (รูป, อุณหภูมิ P1–P3, สูตร ΔT และสีผลประเมิน)</p>
+<p class="s">อ่านไฟล์ Word ที่ export จากกล้อง แล้วสร้างรายงาน Excel (รูป Thermal/Visible, อุณหภูมิ P1–P3, สูตร ΔT และสีผลประเมิน)</p>
 
 <div class="card"><h2>1) เลือกไฟล์ Word (.docx)</h2><input type="file" id="f" accept=".docx"><div id="log"></div></div>
 
-<div class="card" id="c2" hidden><h2>2) ตรวจ / กรอกข้อมูลอุปกรณ์ (จำไว้ในเครื่องให้ใช้ครั้งต่อไป)</h2>
-<div class="tw"><table><thead><tr><th>No.</th><th>Device</th><th>Location (Floor/Room)</th><th>Detail</th><th>Remark</th></tr></thead><tbody id="tb"></tbody></table></div>
+<div class="card" id="c2" hidden><h2>2) ตรวจ / กรอกข้อมูลอุปกรณ์ (จำไว้ในเบราว์เซอร์ให้ใช้ครั้งต่อไป)</h2>
+<div class="tw"><table><thead><tr><th>No.</th><th>ชื่อภาพ (Device)</th><th>Location (Floor/Room)</th><th>Detail</th><th>Remark</th></tr></thead><tbody id="tb"></tbody></table></div>
 <label>หัวรายงาน</label><input type="text" id="ttl" value="Infrared Thermography Report for GPO">
 <label>ท้ายกระดาษ (ขึ้นบรรทัดใหม่ได้)</label><textarea id="ftr" rows="2">Nantawan Management Co., Ltd.
 10th Fl. O-NES Tower, Soi Sukhumvit 6, Klongtoey Sub-District, Klongtoey District, Bangkok 10110 Tel. 0-2651-8170-3</textarea>
@@ -35,7 +36,6 @@ const INFO=['background temperature','emissivity','transmission','average temper
 const $=i=>document.getElementById(i);let recs=[],docName='GPO';
 const num=s=>{const m=/^\s*(-?\d+(?:\.\d+)?)\s*°?\s*C?\s*$/i.exec(s||'');return m?parseFloat(m[1]):null};
 function pdate(s){const m=/(\d{1,2})\/(\d{1,2})\/(\d{4})\s+\d{1,2}:\d{2}:\d{2}/.exec(s||'');if(!m)return null;const a=+m[1],b=+m[2];const[mo,d]=a<=12?[a,b]:[b,a];return new Date(Date.UTC(+m[3],mo-1,d))}
-const defLoc=r=>r.floor?r.floor+' FL.'+(r.room?' / '+r.room:''):'';
 const store={get(){try{return JSON.parse(localStorage.getItem('devinfo')||'{}')}catch(e){return{}}},set(o){try{localStorage.setItem('devinfo',JSON.stringify(o))}catch(e){}}};
 
 async function parseDocx(file){
@@ -43,31 +43,30 @@ async function parseDocx(file){
   P(await z.file('word/_rels/document.xml.rels').async('string')).querySelectorAll('Relationship').forEach(r=>rels[r.getAttribute('Id')]=r.getAttribute('Target'));
   const doc=P(await z.file('word/document.xml').async('string'));
   const T=e=>[...e.getElementsByTagNameNS(NW,'t')].map(t=>t.textContent).join('');
-  const img=async e=>{const b=e.getElementsByTagNameNS(NA,'blip')[0];if(!b)return null;const t=rels[b.getAttributeNS(NR,'embed')];return t?await z.file('word/'+t).async('base64'):null};
+  const img=async e=>{const b=e.getElementsByTagNameNS(NA,'blip')[0];if(!b)return null;const t=rels[b.getAttributeNS(NR,'embed')];return t?await z.file('word/'+t.replace(/^\//,'')).async('base64'):null};
   const out=[];let cur=null;
   for(const tr of doc.getElementsByTagNameNS(NW,'tr')){
     const cells=[...tr.children].filter(c=>c.localName==='tc');let tc=null,m=null;
-    for(const c of cells){for(const p of c.getElementsByTagNameNS(NW,'p')){m=/^\s*(\d+)\s*\.\s*(.+?)\s*\.IS\d\s*$/i.exec(T(p));if(m)break}if(m){tc=c;break}}
+    for(const c of cells){for(const p of c.getElementsByTagNameNS(NW,'p')){m=/^\s*(\d+)\s*\.?\s*(.+?)\s*\.IS\d\s*$/i.exec(T(p));if(m)break}if(m){tc=c;break}}
     if(tc){
       let date=null;for(const p of tc.getElementsByTagNameNS(NW,'p'))date=date||pdate(T(p));
-      const q=/^(\S+)\s*(?:FL\.?\s*(\d+))?\s*(.*)$/.exec(m[2]);
-      cur={n:+m[1],device:q[1].toUpperCase(),floor:q[2]||'',room:(q[3]||'').trim(),date,info:{},markers:[],thermal:await img(tc),visible:null};
+      cur={n:+m[1],device:m[2].trim(),date,info:{},markers:[],thermal:await img(tc),visible:null};
       for(const c of cells)if(c!==tc&&!cur.visible)cur.visible=await img(c);
       out.push(cur);continue}
     if(!cur||cells.length!==2)continue;
     const k=T(cells[0]).trim(),v=T(cells[1]).trim();
     if(INFO.includes(k.toLowerCase()))cur.info[k.toLowerCase()]=v;else if(k&&num(v)!==null)cur.markers.push([k.toUpperCase(),num(v)]);
   }
-  if(!out.length)throw new Error('ไม่พบข้อมูลภาพ (ชื่อไฟล์ลงท้าย .IS2) ในไฟล์ Word นี้');
+  if(!out.length)throw new Error('ไม่พบข้อมูลภาพ (ชื่อลงท้าย .IS2) ในไฟล์ Word นี้');
   return out.sort((a,b)=>a.n-b.n);
 }
 
 $('f').onchange=async e=>{
   const f=e.target.files[0];if(!f)return;$('log').textContent='กำลังอ่านไฟล์...';
   try{recs=await parseDocx(f);docName=f.name.replace(/\.docx$/i,'');const saved=store.get();
-    $('tb').innerHTML=recs.map((r,i)=>{const s=saved[r.device]||{};const v=x=>String(x??'').replace(/"/g,'&quot;');
-      return `<tr><td>${i+1}</td><td>${r.device}</td><td><input type="text" data-k="loc" data-i="${i}" value="${v(s.loc||defLoc(r))}"></td><td><input type="text" data-k="det" data-i="${i}" value="${v(s.det||'')}" placeholder="Terminal Lug / MCCB ..."></td><td><input type="text" data-k="rem" data-i="${i}" value="${v(s.rem||'-')}"></td></tr>`}).join('');
-    $('c2').hidden=false;$('log').textContent='พบภาพ '+recs.length+' ภาพ : '+recs.map(r=>r.device).join(', ')}
+    $('tb').innerHTML=recs.map((r,i)=>{const s=saved[r.device]||{};const v=x=>String(x??'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+      return `<tr><td>${r.n}</td><td>${v(r.device)}</td><td><input type="text" data-k="loc" data-i="${i}" value="${v(s.loc||'')}" placeholder="1st / HV Incoming"></td><td><input type="text" data-k="det" data-i="${i}" value="${v(s.det||'')}" placeholder="Terminal Lug / MCCB ..."></td><td><input type="text" data-k="rem" data-i="${i}" value="${v(s.rem||'-')}"></td></tr>`}).join('');
+    $('c2').hidden=false;$('log').textContent='พบภาพ '+recs.length+' ภาพ'}
   catch(err){$('log').innerHTML='<span class="w">'+err.message+'</span>'}
 };
 
@@ -83,10 +82,10 @@ function mg(ws,r1,c1,r2,c2,v,o={}){
   if(r1!==r2||c1!==c2)ws.mergeCells(r1,c1,r2,c2);
   for(let r=r1;r<=r2;r++)for(let c=c1;c<=c2;c++)if(!o.nb)ws.getCell(r,c).border=BD;
   const c=ws.getCell(r1,c1);c.value=v;c.alignment={horizontal:o.h||'center',vertical:'middle',wrapText:!!o.wrap};
-  c.font={name:'Calibri',size:o.sz||11,bold:!!o.b,color:o.col?{argb:o.col}:undefined};
+  c.font={name:'Calibri',size:o.sz||11,bold:!!o.b};
   if(o.fill)c.fill={type:'pattern',pattern:'solid',fgColor:{argb:o.fill}};if(o.nf)c.numFmt=o.nf;return c}
 
-function addTable(ws,h,title,rows,calcRow,amb){ // rows: [[label, tempRefs...]]
+function addTable(ws,h,title,rows,amb){
   mg(ws,h,1,h+1,4,title,{wrap:1,fill:'FFD9D9D9'});mg(ws,h,5,h+3,10,'Recommended Action',{fill:'FFD9D9D9'});
   mg(ws,h+2,1,h+3,1,'Position',{fill:'FFD9D9D9'});mg(ws,h+2,2,h+3,2,'Temp (°C)',{fill:'FFD9D9D9'});mg(ws,h+2,3,h+2,4,'Criteria',{fill:'FFD9D9D9'});
   mg(ws,h+3,3,h+3,3,'Normal',{fill:'FFD9D9D9'});mg(ws,h+3,4,h+3,4,'Abnormal',{fill:'FFD9D9D9'});
@@ -96,7 +95,7 @@ function addTable(ws,h,title,rows,calcRow,amb){ // rows: [[label, tempRefs...]]
     mg(ws,r,2,r,2,{formula:x.f,result:x.d},{nf:'0.0'});
     mg(ws,r,3,r,3,{formula:`IF(AND(${B}>=0,${B}<=${hi}),"✔","")`,result:ge(x.d,0,hi)?'✔':''});
     mg(ws,r,4,r,4,{formula:`IF(${B}>=${lim},"✔","")`,result:x.d>=lim?'✔':''});
-    mg(ws,r,5,r,10,{formula:(amb?fA:fP)(B),result:res},{});
+    mg(ws,r,5,r,10,{formula:(amb?fA:fP)(B),result:res},{wrap:1});
   });
   const rg=`E${h+4}:J${h+6}`,st=a=>({fill:{type:'pattern',pattern:'solid',bgColor:{argb:a}}});
   ws.addConditionalFormatting({ref:rg,rules:[[MJ,'FFFF0000'],[MO,'FFFFFF00'],[PR,'FF00B0F0'],[N,'FF00FF00']].map(([t,c],i)=>({type:'containsText',operator:'containsText',text:t,priority:i+1+h*10,style:st(c)}))});
@@ -107,38 +106,39 @@ async function build(){
   [9,9,9,9,9,3.6,9,9,9,9].forEach((w,i)=>ws.getColumn(i+1).width=w);
   mg(ws,1,1,1,10,$('ttl').value,{h:'left',nb:1,sz:10});for(let c=1;c<=10;c++)ws.getCell(1,c).border={bottom:{style:'medium'}};
   const inp=[...document.querySelectorAll('#tb input')],saved=store.get();
-  recs.forEach((rec,k)=>{
+  for(let k=0;k<recs.length;k++){const rec=recs[k];
     const g=key=>inp.find(x=>+x.dataset.i===k&&x.dataset.k===key).value.trim();
     const loc=g('loc')||'-',det=g('det')||'-',rem=g('rem').replace(/^remark\s*:\s*/i,'')||'-';
     saved[rec.device]={loc,det,rem};
-    const t=3+48*k,id=n=>{};
+    const t=3+48*k;
     mg(ws,t,1,t,3,'Thermal Image No.'+(k+1),{h:'left',b:1,nb:1});
     if(rec.thermal)ws.addImage(wb.addImage({base64:rec.thermal,extension:'jpeg'}),{tl:{col:1,row:t+1},ext:{width:300,height:184}});else warn.push(rec.device+': ไม่พบภาพ Thermal');
     if(rec.visible)ws.addImage(wb.addImage({base64:rec.visible,extension:'jpeg'}),{tl:{col:6.1,row:t+1},ext:{width:245,height:184}});else warn.push(rec.device+': ไม่พบภาพ Visible');
     mg(ws,t+12,2,t+12,5,'Thermal Image',{nb:1});mg(ws,t+12,7,t+12,10,'Visible Image',{nb:1});
     mg(ws,t+14,1,t+14,3,'Location (Floor/Room)',{fill:'FFD9D9D9'});mg(ws,t+14,4,t+14,7,'Devices',{fill:'FFD9D9D9'});mg(ws,t+14,8,t+14,10,'Detail',{fill:'FFD9D9D9'});
-    mg(ws,t+15,1,t+15,3,loc);mg(ws,t+15,4,t+15,7,rec.device);mg(ws,t+15,8,t+15,10,det);
+    mg(ws,t+15,1,t+15,3,loc,{wrap:1});mg(ws,t+15,4,t+15,7,rec.device,{wrap:1});mg(ws,t+15,8,t+15,10,det,{wrap:1});
     const emis=num(rec.info['emissivity']),amb=num(rec.info['background temperature']);
     const found={},extras=[],seen={};
     rec.markers.forEach(([n,v])=>{seen[n]=(seen[n]||0)+1;if(/^P[123]$/.test(n)&&!(n in found))found[n]=v;else extras.push(n+(seen[n]>1?' (#'+seen[n]+')':'')+' = '+v.toFixed(1)+'°C')});
-    const kv=(r,a,b,opt)=>{mg(ws,r,2,r,5,a,opt||{});mg(ws,r,6,r,9,b,opt&&opt.hdr?opt:{nf:opt&&opt.nf})};
-    kv(t+17,'IR Information','Value',{hdr:1,fill:'FFD9D9D9'});
+    const hdr=(r,a,b)=>{mg(ws,r,2,r,5,a,{fill:'FFD9D9D9'});mg(ws,r,6,r,9,b,{fill:'FFD9D9D9'})};
+    hdr(t+17,'IR Information','Value');
     mg(ws,t+18,2,t+18,5,'Date of Creation');mg(ws,t+18,6,t+18,9,rec.date||'-',{nf:'d-mmm-yy'});
-    kv(t+19,'Object Information','Value',{hdr:1,fill:'FFD9D9D9'});
+    hdr(t+19,'Object Information','Value');
     mg(ws,t+20,2,t+20,5,'Emissivity');mg(ws,t+20,6,t+20,9,emis??'-');
     mg(ws,t+21,2,t+21,5,'Ambient Temp (°C)');mg(ws,t+21,6,t+21,9,amb??'-',{nf:'0.0'});
-    kv(t+22,'Position','Value',{hdr:1,fill:'FFD9D9D9'});
+    hdr(t+22,'Position','Value');
     ['P1','P2','P3'].forEach((p,i)=>{mg(ws,t+23+i,2,t+23+i,5,p);mg(ws,t+23+i,6,t+23+i,9,found[p]??'-',{nf:'0.0'})});
     mg(ws,t+27,2,t+27,9,'Thermographic Survey Suggested Actions Based on Temperature Rise',{b:1,nb:1});
     const P={P1:t+23,P2:t+24,P3:t+25},pr=[['P1','P2'],['P2','P3'],['P3','P1']];
     addTable(ws,t+29,'Temperature Difference (ΔT) Between\nSimilar Components under Similar Loading',
-      pr.map(([a,b])=>({label:a+' - '+b,d:(a in found&&b in found)?Math.abs(found[a]-found[b]):null,f:`ABS(F${P[a]}-F${P[b]})`})),0,false);
+      pr.map(([a,b])=>({label:a+' - '+b,d:(a in found&&b in found)?Math.abs(found[a]-found[b]):null,f:`ABS(F${P[a]}-F${P[b]})`})),false);
     addTable(ws,t+37,'Temperature Difference (ΔT) Between\nComponent and Ambient Air Temperature',
-      ['P1','P2','P3'].map(a=>({label:a+' - Amb.',d:(a in found&&amb!=null)?Math.abs(found[a]-amb):null,f:`ABS(F${P[a]}-F${t+21})`})),0,true);
-    let rm=rem;if(extras.length){rm+='  (Extra marker not calculated: '+extras.join(', ')+')';warn.push(rec.device+': มีจุดวัดเพิ่มนอกเหนือ P1–P3 ที่ไม่ได้คำนวณ → '+extras.join(', '))}
-    mg(ws,t+44,1,t+44,10,'Remark : '+rm,{h:'left',nb:1});
+      ['P1','P2','P3'].map(a=>({label:a+' - Amb.',d:(a in found&&amb!=null)?Math.abs(found[a]-amb):null,f:`ABS(F${P[a]}-F${t+21})`})),true);
+    let rm=rem;if(extras.length){rm+='  (Extra marker not calculated: '+extras.join(', ')+')';warn.push(rec.device+': มีจุดวัดเพิ่มนอกเหนือ P1–P3 → '+extras.join(', '))}
+    mg(ws,t+44,1,t+44,10,'Remark : '+rm,{h:'left',nb:1,wrap:1});
     if(k<recs.length-1)ws.getRow(t+47).addPageBreak();
-  });
+    if(k%20===19)await new Promise(r=>setTimeout(r));
+  }
   store.set(saved);
   ws.pageSetup={paperSize:9,orientation:'portrait',fitToPage:true,fitToWidth:1,fitToHeight:0,printArea:'A1:J'+(3+48*recs.length-1),printTitlesRow:'1:1',margins:{left:.7,right:.47,top:.55,bottom:.6,header:.3,footer:.3}};
   ws.headerFooter.oddFooter='&L&9'+$('ftr').value;
@@ -146,8 +146,8 @@ async function build(){
   a.href=URL.createObjectURL(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
   a.download=docName+'_Report.xlsx';document.body.appendChild(a);a.click();a.remove();return warn;
 }
-$('go').onclick=async()=>{$('go').disabled=true;
-  try{const w=await build();$('log').innerHTML='สร้างรายงานเสร็จแล้ว — ไฟล์ถูกดาวน์โหลดอัตโนมัติ'+w.map(x=>'<br><span class="w">! '+x+'</span>').join('')}
+$('go').onclick=async()=>{$('go').disabled=true;$('log').textContent='กำลังสร้างรายงาน (ไฟล์ใหญ่อาจใช้เวลาสักครู่)...';
+  try{const w=await build();$('log').innerHTML='สร้างรายงานเสร็จแล้ว — ไฟล์ถูกดาวน์โหลดอัตโนมัติ'+w.map(x=>'<br><span class="w">! '+x.replace(/</g,'&lt;')+'</span>').join('')}
   catch(err){$('log').innerHTML='<span class="w">เกิดข้อผิดพลาด: '+err.message+'</span>'}
   $('go').disabled=false};
 </script></main></body></html>
